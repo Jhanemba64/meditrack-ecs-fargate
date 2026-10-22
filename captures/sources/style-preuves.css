@@ -1,4 +1,4 @@
-/* Style commun des pages de preuves (même rendu que la capture du bloc 1) */
+/* Style commun des pages de preuves */
 :root { --ink: #1b2a27; --muted: #5b6b67; --green: #0f9d76; --bg: #f5f8f7; --term: #10201c; }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); font-family: "Segoe UI", system-ui, sans-serif; color: var(--ink); }

@@ -1,4 +1,4 @@
-# Base PostgreSQL RDS dans les sous-réseaux privés (exercice 2)
+# Base PostgreSQL RDS dans les sous-réseaux privés
 
 resource "aws_db_subnet_group" "main" {
   name        = "${var.project}-db-subnets"
@@ -6,6 +6,13 @@ resource "aws_db_subnet_group" "main" {
   subnet_ids  = aws_subnet.private[*].id
 
   tags = { Name = "${var.project}-db-subnets" }
+}
+
+# Groupes de journaux créés à l'avance : rétention maîtrisée et suppression avec terraform destroy
+resource "aws_cloudwatch_log_group" "rds" {
+  for_each          = toset(["postgresql", "upgrade"])
+  name              = "/aws/rds/instance/${var.project}-db/${each.key}"
+  retention_in_days = 7
 }
 
 resource "aws_db_instance" "main" {
@@ -31,12 +38,18 @@ resource "aws_db_instance" "main" {
   # Le plan gratuit du compte limite la rétention des sauvegardes à 1 jour
   backup_retention_period    = 1
   auto_minor_version_upgrade = true
+  copy_tags_to_snapshot      = true
 
-  # Réglages de TP. En production : multi_az, deletion_protection et snapshot final.
+  # Journaux PostgreSQL envoyés dans CloudWatch
+  enabled_cloudwatch_logs_exports = ["postgresql", "upgrade"]
+
+  # Réglages de démonstration. En production : multi_az, deletion_protection et snapshot final.
   multi_az            = false
   deletion_protection = false
   skip_final_snapshot = true
   apply_immediately   = true
 
   tags = { Name = "${var.project}-db" }
+
+  depends_on = [aws_cloudwatch_log_group.rds]
 }

@@ -1,4 +1,4 @@
-# Réseau : VPC du bloc 1, 2 sous-réseaux publics (ALB, NAT) et 2 sous-réseaux privés (ECS, RDS).
+# Réseau : VPC, 2 sous-réseaux publics (ALB, NAT) et 2 sous-réseaux privés (ECS, RDS).
 # Deux zones de disponibilité : obligatoire pour l'ALB et pour le groupe de sous-réseaux RDS.
 
 data "aws_availability_zones" "available" {
@@ -13,17 +13,23 @@ resource "aws_vpc" "main" {
   tags = { Name = "${var.project}-vpc" }
 }
 
+# Groupe de sécurité par défaut du VPC vidé de toutes ses règles :
+# une ressource créée sans groupe explicite n'est ainsi jamais exposée.
+resource "aws_default_security_group" "default" {
+  vpc_id = aws_vpc.main.id
+  tags   = { Name = "${var.project}-default-sg-ferme" }
+}
+
 resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
   tags   = { Name = "${var.project}-igw" }
 }
 
 resource "aws_subnet" "public" {
-  count                   = length(var.public_subnet_cidrs)
-  vpc_id                  = aws_vpc.main.id
-  cidr_block              = var.public_subnet_cidrs[count.index]
-  availability_zone       = data.aws_availability_zones.available.names[count.index]
-  map_public_ip_on_launch = true
+  count             = length(var.public_subnet_cidrs)
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = var.public_subnet_cidrs[count.index]
+  availability_zone = data.aws_availability_zones.available.names[count.index]
 
   tags = { Name = "${var.project}-public-subnet-${count.index + 1}" }
 }

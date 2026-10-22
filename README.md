@@ -1,8 +1,8 @@
-# MediTrack - déploiement de l'API sur AWS (GreenOps Solutions, bloc 2)
+# MediTrack - API conteneurisée sur AWS ECS Fargate
 
-Étude de cas du Bachelor Administrateur système DevOps (ISCOD), bloc « Déployer en continu une application ».
+[![CI](https://github.com/Jhanemba64/meditrack-ecs-fargate/actions/workflows/ci.yml/badge.svg)](https://github.com/Jhanemba64/meditrack-ecs-fargate/actions/workflows/ci.yml)
 
-L'API de contact de MediTrack est conteneurisée avec Docker, stockée dans un dépôt ECR privé et exécutée sur ECS Fargate derrière un Application Load Balancer. Les données sont stockées dans une base RDS PostgreSQL placée dans des sous-réseaux privés. Toute l'infrastructure est décrite en Terraform, y compris le site statique du bloc 1 (S3 et CloudFront).
+L'API de contact de MediTrack est conteneurisée avec Docker, stockée dans un dépôt ECR privé et exécutée sur ECS Fargate derrière un Application Load Balancer. Les données sont stockées dans une base RDS PostgreSQL placée dans des sous-réseaux privés. Toute l'infrastructure est décrite en Terraform, y compris le site statique MediTrack Online (S3 et CloudFront).
 
 ![Architecture](captures/00-schema-architecture.png)
 
@@ -10,11 +10,13 @@ L'API de contact de MediTrack est conteneurisée avec Docker, stockée dans un d
 
 | Dossier / fichier | Contenu |
 |---|---|
-| `api-backend/` | Code de l'API fourni par l'énoncé (`package.json`, `Dockerfile`, `index.js`) |
+| `api-backend/` | API Node.js (Express, PostgreSQL) et son `Dockerfile` multi-étapes |
 | `terraform/` | Réseau (VPC, sous-réseaux, NAT), ECR, RDS, ECS, ALB, IAM, S3, CloudFront |
-| `docker-compose.test.yml` | Environnement de test local : l'API et une base PostgreSQL temporaire |
+| `docker-compose.test.yml` | Environnement de test : l'API et une base PostgreSQL temporaire (utilisé aussi par la CI) |
+| `.github/` | Workflow d'intégration continue et configuration Dependabot |
+| `.checkov.yaml` | Configuration de Checkov et risques de sécurité acceptés |
 | `aws-iam/` | Politique IAM de l'utilisateur de déploiement |
-| `site/` | Site statique MediTrack Online (bloc 1) |
+| `site/` | Site statique MediTrack Online, servi par S3 et CloudFront |
 | `captures/` | Captures de la console AWS et des tests ; `sources/` contient le schéma et les pages de preuves en HTML |
 
 ## Prérequis
@@ -27,8 +29,8 @@ L'API de contact de MediTrack est conteneurisée avec Docker, stockée dans un d
 
 ```bash
 # Construction et test local de l'image
-docker build --platform linux/amd64 --provenance=false -t meditrack-api:1.0.0 api-backend
-docker compose -f docker-compose.test.yml up -d
+docker build --platform linux/amd64 --provenance=false -t meditrack-api:1.1.0 api-backend
+docker compose -f docker-compose.test.yml up -d --wait
 docker compose -f docker-compose.test.yml down -v
 
 # Dépôt ECR, puis envoi de l'image
@@ -37,8 +39,8 @@ terraform init
 terraform apply -target=aws_ecr_repository.api -target=aws_ecr_lifecycle_policy.api
 aws ecr get-login-password --region eu-west-3 --profile meditrack | \
   docker login --username AWS --password-stdin <compte>.dkr.ecr.eu-west-3.amazonaws.com
-docker tag  meditrack-api:1.0.0 <compte>.dkr.ecr.eu-west-3.amazonaws.com/meditrack-api:1.0.0
-docker push <compte>.dkr.ecr.eu-west-3.amazonaws.com/meditrack-api:1.0.0
+docker tag  meditrack-api:1.1.0 <compte>.dkr.ecr.eu-west-3.amazonaws.com/meditrack-api:1.1.0
+docker push <compte>.dkr.ecr.eu-west-3.amazonaws.com/meditrack-api:1.1.0
 
 # Reste de l'infrastructure (réseau, RDS, ECS, ALB, site)
 terraform apply
@@ -62,6 +64,22 @@ terraform destroy
 
 La commande supprime toutes les ressources, dépôt ECR compris.
 
+## Intégration continue
+
+Chaque push et chaque pull request passent par le workflow [`ci.yml`](.github/workflows/ci.yml) :
+
+| Contrôle | Outils |
+|---|---|
+| Format, validité et bonnes pratiques du Terraform | `terraform fmt`, `terraform validate`, TFLint |
+| Analyse de sécurité du Terraform, du Dockerfile et des workflows | Checkov (résultats dans l'onglet Security) |
+| Bonnes pratiques du Dockerfile | Hadolint |
+| Vulnérabilités de l'image | Trivy, bloquant sur les failles critiques et élevées corrigeables |
+| Fonctionnement de l'API avec une vraie base PostgreSQL | Docker Compose et cURL |
+
+Les actions GitHub sont épinglées par SHA de commit et les images des outils par digest. Dependabot propose chaque mois les mises à jour des actions, de l'image de base, des dépendances npm et du provider Terraform.
+
+Les contrôles Checkov non appliqués sont des risques acceptés pour une démonstration : HTTPS sur l'ALB sans nom de domaine, WAF, Multi-AZ, clés KMS dédiées… Chacun est justifié dans [`.checkov.yaml`](.checkov.yaml), avec ce qu'il faudrait en production.
+
 ## Sécurité
 
 - Base RDS et tâches ECS dans des sous-réseaux privés, sans IP publique
@@ -70,4 +88,12 @@ La commande supprime toutes les ressources, dépôt ECR compris.
 - Mot de passe de la base généré par RDS, stocké dans Secrets Manager et injecté au démarrage des tâches
 - Chiffrement au repos (RDS, ECR, S3) et connexion TLS vers la base (`rds.force_ssl = 1`)
 - Dépôt ECR privé, tags immuables, analyse des vulnérabilités à chaque envoi
+- Image `node:22-alpine` construite en deux étapes : dépendances figées par `package-lock.json`, npm retiré de l'image finale, exécution sans les droits root. L'image 1.0.0 (Dockerfile d'origine sur `node:18-alpine`) comptait 5 failles critiques et 20 élevées ; la 1.1.0 n'en a aucune
+- Groupe de sécurité par défaut du VPC vidé de toutes ses règles
+- En-têtes de sécurité HTTP ajoutés par CloudFront (HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy)
+- Journaux de l'API et de PostgreSQL centralisés dans CloudWatch
 - Ressources hébergées dans la région Paris (`eu-west-3`)
+
+## Licence
+
+[MIT](LICENSE)

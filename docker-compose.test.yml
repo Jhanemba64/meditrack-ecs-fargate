@@ -17,7 +17,7 @@ services:
 
   api:
     build: ./api-backend
-    image: meditrack-api:1.0.0
+    image: meditrack-api:1.1.0
     ports:
       - "3000:3000"
     environment:

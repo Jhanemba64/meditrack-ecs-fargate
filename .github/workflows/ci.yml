@@ -1,0 +1,107 @@
+# Intégration continue : qualité et sécurité du Terraform, de l'image Docker et de l'API.
+# Les actions sont épinglées par SHA de commit et les images d'outils par digest.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  terraform:
+    name: Terraform (fmt, validate, TFLint)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+
+      - name: Format
+        run: terraform fmt -check -recursive
+
+      - name: Validation
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate
+
+      - name: TFLint
+        run: >-
+          docker run --rm -v "$PWD:/data" -w /data
+          ghcr.io/terraform-linters/tflint:v0.64.0@sha256:1c595f42d794c32c45a6ea8b58655fd66433d4ca3b1bc631c574a48d120bd19f
+          --format compact
+
+  checkov:
+    name: Checkov (Terraform, Dockerfile, workflows)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Risques acceptés et leur justification : voir .checkov.yaml
+      - name: Analyse Checkov
+        run: >-
+          docker run --rm -v "$PWD:/src" -w /src
+          bridgecrew/checkov:3.3.30@sha256:4b65e89f1fde292249fc0aa0d0db43302c036dfe39f7370b2d3517571082b894
+          --config-file .checkov.yaml -o cli -o sarif --output-file-path console,checkov.sarif
+
+      - name: Envoi des résultats dans l'onglet Security
+        if: ${{ !cancelled() }}
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          sarif_file: checkov.sarif
+          category: checkov
+
+  image:
+    name: Image Docker (Hadolint, Trivy, test de l'API)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Hadolint
+        uses: hadolint/hadolint-action@06be81baf89a55ffd0e24b8f04a4185738dd3387 # v3.5.0
+        with:
+          dockerfile: api-backend/Dockerfile
+
+      - name: Construction de l'image
+        run: docker build -t meditrack-api:ci api-backend
+
+      # Bloquant sur les vulnérabilités critiques et élevées pour lesquelles un correctif existe
+      - name: Scan Trivy
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: meditrack-api:ci
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Test de l'API avec PostgreSQL
+        run: |
+          docker compose -f docker-compose.test.yml up -d --build --wait
+          curl -fsS --retry 5 --retry-all-errors --retry-delay 2 -X POST http://localhost:3000/contact \
+            -H "Content-Type: application/json" \
+            -d '{"nom":"CI","email":"ci@example.com","message":"Test automatique"}'
+          curl -fsS http://localhost:3000/contacts | grep -q "ci@example.com"
+
+      - name: Arrêt de l'environnement de test
+        if: ${{ always() }}
+        run: docker compose -f docker-compose.test.yml down -v

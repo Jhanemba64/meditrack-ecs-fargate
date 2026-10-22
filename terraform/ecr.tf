@@ -1,4 +1,4 @@
-# Dépôt ECR privé de l'image de l'API (exercice 1)
+# Dépôt ECR privé de l'image de l'API
 
 resource "aws_ecr_repository" "api" {
   name = "${var.project}-api"

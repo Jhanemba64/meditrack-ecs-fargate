@@ -60,7 +60,7 @@
 <body>
 <div class="page">
   <h1>MediTrack - <span>Architecture de l'API conteneurisée</span></h1>
-  <div class="sub">Étude de cas GreenOps Solutions, bloc 2, AWS eu-west-3 (Paris), infrastructure décrite en Terraform</div>
+  <div class="sub">AWS eu-west-3 (Paris), infrastructure décrite en Terraform</div>
 
   <div class="diagram" id="diagram">
     <svg id="links"></svg>
@@ -68,7 +68,7 @@
     <!-- Acteurs (hors AWS) -->
     <div class="left">
       <div class="node actor" id="admin"><div class="t">Administrateur</div><div class="d">Mon poste : Docker, Terraform,<br>AWS CLI (utilisateur IAM dédié)</div></div>
-      <div class="node actor" id="user"><div class="t">Visiteur</div><div class="d">Site MediTrack Online (bloc 1)</div></div>
+      <div class="node actor" id="user"><div class="t">Visiteur</div><div class="d">Site MediTrack Online</div></div>
       <div class="node actor" id="client"><div class="t">Client de l'API</div><div class="d">cURL · Postman<br>formulaire de contact</div></div>
     </div>
 
@@ -78,7 +78,7 @@
 
       <div class="services">
         <div class="node" id="cf" style="--c: var(--net)"><div class="t"><span class="b">CF</span>CloudFront</div><div class="d">HTTPS forcé<br>certificat TLS AWS</div></div>
-        <div class="node" id="s3" style="--c: var(--storage)"><div class="t"><span class="b">S3</span>Bucket S3</div><div class="d">site statique (bloc 1)<br>privé · chiffré · OAC</div></div>
+        <div class="node" id="s3" style="--c: var(--storage)"><div class="t"><span class="b">S3</span>Bucket S3</div><div class="d">site statique<br>privé · chiffré · OAC</div></div>
         <div class="node" id="ecr" style="--c: var(--compute)"><div class="t"><span class="b">ECR</span>Dépôt privé</div><div class="d">meditrack-api:<b>1.0.0</b><br>tag immuable · scan</div></div>
         <div class="node" id="sm" style="--c: var(--sec)"><div class="t"><span class="b">SM</span>Secrets Manager</div><div class="d">mot de passe de la BDD<br>(généré par RDS)</div></div>
         <div class="node" id="cw" style="--c: var(--mgmt)"><div class="t"><span class="b">CW</span>CloudWatch</div><div class="d">logs de l'API<br>Container Insights</div></div>
@@ -168,7 +168,7 @@ const A = box('admin'), U = box('user'), C = box('client'), CF = box('cf'), S3 =
 
 // Déploiement : docker push vers ECR
 link([[A.r, A.cy], [ECR.cx, A.cy], [ECR.cx, ECR.t]], { color: DEP, dash: true, text: 'docker push meditrack-api:1.0.0', seg: 0, at: 0.55 });
-// Site statique (bloc 1)
+// Site statique
 link([[U.r, U.cy], [CF.l, CF.cy]], { color: NET, text: 'HTTPS 443', at: 0.42 });
 link([[CF.r, CF.cy], [S3.l, S3.cy]], { color: NET });
 // API : client -> IGW -> ALB

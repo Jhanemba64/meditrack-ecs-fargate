@@ -7,7 +7,7 @@ variable "aws_region" {
 }
 
 variable "aws_profile" {
-  description = "Profil AWS CLI à utiliser (utilisateur IAM dédié du bloc 1)"
+  description = "Profil AWS CLI à utiliser (utilisateur IAM de déploiement dédié)"
   type        = string
   default     = "meditrack"
 }
@@ -27,7 +27,7 @@ variable "project" {
 # Réseau
 
 variable "vpc_cidr" {
-  description = "Plage d'adresses IP privées du réseau VPC (identique au bloc 1)"
+  description = "Plage d'adresses IP privées du réseau VPC"
   type        = string
   default     = "10.0.0.0/16"
 }
@@ -69,7 +69,7 @@ variable "db_username" {
 variable "api_image_tag" {
   description = "Tag de l'image Docker de l'API dans ECR (= version du package.json)"
   type        = string
-  default     = "1.0.0"
+  default     = "1.1.0"
 }
 
 variable "api_port" {

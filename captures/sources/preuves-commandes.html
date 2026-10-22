@@ -7,11 +7,11 @@
 </head>
 <body>
 <div class="page">
-  <h1>MediTrack - <span>Vérifications du déploiement (bloc 2)</span></h1>
-  <div class="sub">Étude de cas GreenOps Solutions, API conteneurisée (Docker, ECR, RDS, ECS Fargate, ALB), région eu-west-3</div>
+  <h1>MediTrack - <span>Vérifications du déploiement</span></h1>
+  <div class="sub">API conteneurisée (Docker, ECR, RDS, ECS Fargate, ALB), région eu-west-3</div>
 
   <div class="card">
-    <h2><span class="badge">Ex 1</span>Image Docker construite et poussée dans ECR</h2>
+    <h2><span class="badge">Étape 1</span>Image Docker construite et poussée dans ECR</h2>
 <pre><span class="c">$ docker build --platform linux/amd64 --provenance=false -t meditrack-api:1.0.0 .</span>
 #10 naming to docker.io/library/meditrack-api:1.0.0 <span class="ok">done</span>
 <span class="c">$ docker push 971598352115.dkr.ecr.eu-west-3.amazonaws.com/meditrack-api:1.0.0</span>
@@ -23,7 +23,7 @@ Statut = COMPLETE   CRITICAL = <span class="ko">5</span>  HIGH = <span class="ko
   </div>
 
   <div class="card">
-    <h2><span class="badge">Ex 2</span>Base RDS PostgreSQL privée et chiffrée</h2>
+    <h2><span class="badge">Étape 2</span>Base RDS PostgreSQL privée et chiffrée</h2>
 <pre><span class="c">$ aws rds describe-db-instances --db-instance-identifier meditrack-db</span>
 Classe = db.t3.micro   Moteur = postgres 18.3   VPC = vpc-05b0b271096dfb0b5 (meditrack-vpc)
 GroupeSousReseaux = meditrack-db-subnets   AccessiblePubliquement = <span class="ok">False</span>   StockageChiffre = <span class="ok">True</span>
@@ -37,7 +37,7 @@ rds.force_ssl = <span class="ok">1</span>   <span class="cm"># TLS obligatoire</
   </div>
 
   <div class="card">
-    <h2><span class="badge">Ex 3</span>API déployée sur ECS Fargate derrière l'ALB</h2>
+    <h2><span class="badge">Étape 3</span>API déployée sur ECS Fargate derrière l'ALB</h2>
 <pre><span class="c">$ terraform apply</span>
 aws_ecs_service.api: Creation complete after 1m26s
 Apply complete! Resources: <span class="ok">41 added</span>, 0 changed, 0 destroyed.

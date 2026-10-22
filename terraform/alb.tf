@@ -1,4 +1,4 @@
-# Application Load Balancer public devant le service ECS (exercice 3)
+# Application Load Balancer public devant le service ECS
 
 resource "aws_lb" "api" {
   name               = "${var.project}-api-alb"

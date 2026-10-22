@@ -1,4 +1,4 @@
-# Bucket S3 privé du site statique (bloc 1), lu uniquement par CloudFront via OAC
+# Bucket S3 privé du site statique, lu uniquement par CloudFront via OAC
 
 data "aws_caller_identity" "current" {}
 
@@ -28,6 +28,26 @@ resource "aws_s3_bucket_versioning" "site" {
   versioning_configuration {
     status = "Enabled"
   }
+}
+
+# Anciennes versions des fichiers supprimées après 30 jours
+resource "aws_s3_bucket_lifecycle_configuration" "site" {
+  bucket = aws_s3_bucket.site.id
+
+  rule {
+    id     = "expiration-anciennes-versions"
+    status = "Enabled"
+    filter {}
+
+    noncurrent_version_expiration {
+      noncurrent_days = 30
+    }
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+  }
+
+  depends_on = [aws_s3_bucket_versioning.site]
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "site" {

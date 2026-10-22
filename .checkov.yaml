@@ -1,0 +1,64 @@
+# Configuration Checkov : analyse de sécurité du Terraform, du Dockerfile et des workflows GitHub.
+#
+# Les contrôles ignorés ci-dessous sont des risques acceptés pour une infrastructure de démonstration,
+# détruite après usage. Chaque groupe indique ce qui serait mis en place en production.
+
+directory:
+  - .
+framework:
+  - terraform
+  - dockerfile
+  - github_actions
+compact: true
+quiet: true
+
+skip-check:
+  # HTTPS sur l'API : il faut un nom de domaine et un certificat ACM.
+  # En production : écouteur 443 en TLS 1.2+, redirection 80 -> 443, port 80 fermé.
+  - CKV_AWS_2     # écouteur ALB en HTTPS
+  - CKV_AWS_103   # TLS 1.2 minimum sur l'écouteur
+  - CKV2_AWS_20   # redirection HTTP -> HTTPS
+  - CKV_AWS_260   # port 80 ouvert sur Internet (point d'entrée de l'API)
+  - CKV_AWS_378   # trafic ALB -> conteneurs en HTTP, interne au VPC
+
+  # CloudFront sur son domaine par défaut (*.cloudfront.net) : HTTPS forcé, mais ni certificat
+  # personnalisé ni choix de la version TLS minimale possibles sans domaine.
+  - CKV2_AWS_42   # certificat SSL personnalisé
+  - CKV_AWS_174   # TLS 1.2 minimum
+  - CKV_AWS_374   # restriction géographique (site public)
+  - CKV_AWS_310   # origine de secours
+
+  # Pare-feu applicatif (AWS WAF) : service payant. En production : WebACL avec les règles gérées AWS.
+  - CKV_AWS_68    # WAF sur CloudFront
+  - CKV2_AWS_28   # WAF sur l'ALB
+  - CKV2_AWS_47   # règle Log4j du WAF
+
+  # Haute disponibilité et réplication : coût doublé. En production : RDS Multi-AZ.
+  - CKV_AWS_157   # RDS Multi-AZ
+  - CKV_AWS_144   # réplication S3 inter-régions
+
+  # Protection contre la suppression : incompatible avec un terraform destroy en fin de démonstration.
+  - CKV_AWS_150   # ALB
+  - CKV_AWS_293   # RDS
+
+  # Journalisation d'audit avancée : nécessite un bucket de journaux dédié et augmente le coût.
+  # Les journaux de l'API et de PostgreSQL sont déjà dans CloudWatch (rétention 7 jours).
+  - CKV_AWS_91    # journaux d'accès de l'ALB
+  - CKV_AWS_86    # journaux d'accès CloudFront
+  - CKV_AWS_18    # journaux d'accès S3
+  - CKV2_AWS_11   # VPC Flow Logs
+  - CKV2_AWS_62   # notifications d'événements S3
+  - CKV_AWS_338   # rétention des journaux d'un an
+  - CKV2_AWS_30   # journalisation des requêtes SQL
+  - CKV_AWS_353   # Performance Insights
+  - CKV_AWS_118   # surveillance améliorée RDS
+
+  # Chiffrement au repos déjà actif avec les clés gérées par AWS (AES-256).
+  # Des clés KMS client coûtent 1 $ par mois chacune ; en production, une clé par usage.
+  - CKV_AWS_136   # ECR
+  - CKV_AWS_145   # S3
+  - CKV_AWS_158   # groupes de journaux CloudWatch
+
+  # Autres choix de conception
+  - CKV_AWS_161   # authentification IAM RDS : l'API utilise le mot de passe stocké dans Secrets Manager
+  - CKV_AWS_394   # zones de disponibilité : les deux premières zones de la région suffisent

@@ -1,5 +1,5 @@
 output "cloudfront_url" {
-  description = "URL publique HTTPS du site statique (bloc 1)"
+  description = "URL publique HTTPS du site statique"
   value       = "https://${aws_cloudfront_distribution.site.domain_name}"
 }
 

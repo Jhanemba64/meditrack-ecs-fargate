@@ -1,4 +1,4 @@
-# Cluster, définition de tâche et service ECS Fargate (exercice 3)
+# Cluster, définition de tâche et service ECS Fargate
 
 # Cluster sans instance EC2 (équivalent du type "Networking only" de la console)
 resource "aws_ecs_cluster" "main" {
